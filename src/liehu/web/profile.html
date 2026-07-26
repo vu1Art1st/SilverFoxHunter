@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>个人中心 · SilverFoxHunter 银狐猎手</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🦊</span>
+      <div class="brand-text">
+        <h1>个人中心</h1>
+        <p>SilverFoxHunter · 银狐猎手</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a class="btn-ghost" href="/">← 返回仪表盘</a>
+      <button id="btn-logout" class="btn-ghost">退出登录</button>
+    </div>
+  </header>
+
+  <main class="profile-main">
+    <!-- 账户资料 -->
+    <section class="chart-box profile-section">
+      <h3>账户资料</h3>
+      <div class="profile-avatar-row">
+        <img id="avatar-preview" class="avatar-lg" alt="头像" />
+        <div>
+          <input id="avatar-file" type="file" accept="image/*" hidden />
+          <button id="btn-avatar" class="btn-primary">更换头像</button>
+          <button id="btn-avatar-clear" class="btn-ghost">清除</button>
+          <p class="auth-hint">支持 PNG/JPG，≤512KB。</p>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>用户名
+          <input id="username" type="text" />
+        </label>
+        <button id="btn-username" class="btn-primary">保存用户名</button>
+      </div>
+    </section>
+
+    <!-- 修改密码 -->
+    <section class="chart-box profile-section">
+      <h3>修改密码</h3>
+      <div class="form-grid">
+        <label>旧密码
+          <input id="old-password" type="password" autocomplete="current-password" />
+        </label>
+        <label>新密码
+          <input id="new-password" type="password" autocomplete="new-password" />
+        </label>
+        <label>确认新密码
+          <input id="new-password2" type="password" autocomplete="new-password" />
+        </label>
+      </div>
+      <button id="btn-password" class="btn-primary">更新密码</button>
+    </section>
+
+    <!-- API 密钥配置 -->
+    <section class="chart-box profile-section">
+      <div class="section-head">
+        <h3>数据源与 API 密钥</h3>
+        <button id="btn-config" class="btn-ghost">⚙ 配置</button>
+      </div>
+      <div id="config-panel" class="config-panel" hidden>
+        <p class="auth-hint">
+          每个采集器可在 <code>mock</code>（回放）/ <code>live</code>（真实源）间切换；
+          <code>urlscan</code> / <code>certspotter</code> 的 live 模式需提供 API 密钥。
+        </p>
+        <div id="modes-grid" class="config-grid"></div>
+        <div id="keys-grid" class="config-grid"></div>
+        <button id="btn-save-config" class="btn-primary">保存配置</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="/assets/profile.js"></script>
+</body>
+</html>
