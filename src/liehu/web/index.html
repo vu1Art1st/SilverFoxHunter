@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SilverFoxHunter · 银狐猎手</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🦊</span>
+      <div class="brand-text">
+        <h1>SilverFoxHunter · 银狐猎手</h1>
+        <p>银狐仿冒下载链威胁情报追踪 · 壳 / 线 / 包 三层方法论</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="water-mark" class="water-mark">水位加载中…</span>
+      <button id="btn-trigger" class="btn-primary" title="手动触发一次完整追踪周期">▶ 触发一轮追踪</button>
+      <a id="link-profile" class="profile-entry" href="/profile" title="个人中心">
+        <img id="topbar-avatar" class="avatar-sm" alt="头像" />
+        <span id="topbar-username">个人中心</span>
+      </a>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview">总览水位</button>
+    <button class="tab" data-tab="frontends">前台 · 壳</button>
+    <button class="tab" data-tab="controls">控制线 · 线</button>
+    <button class="tab" data-tab="payloads">载荷 · 包</button>
+    <button class="tab" data-tab="graph">关联图</button>
+    <button class="tab" data-tab="events">事件流</button>
+  </nav>
+
+  <main>
+    <!-- 总览水位 -->
+    <section id="tab-overview" class="panel active">
+      <div class="cards" id="stat-cards"></div>
+      <div class="chart-row">
+        <div class="chart-box">
+          <h3>战役分布 (noah / fezhx)</h3>
+          <div id="chart-campaign" class="chart"></div>
+        </div>
+        <div class="chart-box">
+          <h3>当天分类水位</h3>
+          <div id="chart-dayclass" class="chart"></div>
+        </div>
+        <div class="chart-box">
+          <h3>题材分布</h3>
+          <div id="chart-theme" class="chart"></div>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="chart-box">
+          <h3>事件优先级分布</h3>
+          <div id="chart-priority" class="chart"></div>
+        </div>
+        <div class="chart-box">
+          <h3>数据源运行模式 &amp; 起点 IOC</h3>
+          <div id="modes-box"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 前台 -->
+    <section id="tab-frontends" class="panel">
+      <div class="filters">
+        <label>战役
+          <select id="f-campaign"><option value="">全部</option><option>noah</option><option>fezhx</option></select>
+        </label>
+        <label>当天分类
+          <select id="f-dayclass"><option value="">全部</option></select>
+        </label>
+        <label>题材
+          <select id="f-theme"><option value="">全部</option></select>
+        </label>
+        <span id="f-count" class="count-badge"></span>
+      </div>
+      <div id="frontend-list" class="card-grid"></div>
+    </section>
+
+    <!-- 控制线 -->
+    <section id="tab-controls" class="panel">
+      <p class="hint">控制接口分时采样时间线 —— 观察 <code>download_link</code> 由 7·22 分离到 7·23 合流的过程。</p>
+      <div id="control-timeline"></div>
+    </section>
+
+    <!-- 载荷 -->
+    <section id="tab-payloads" class="panel">
+      <p class="hint">按 <code>structure_id</code> 归组的载荷骨架 —— 完整哈希秒级轮换, 但稳定区 SHA256 / imphash / OLE 结构持久。</p>
+      <div id="payload-compare"></div>
+    </section>
+
+    <!-- 关联图 -->
+    <section id="tab-graph" class="panel">
+      <div class="filters">
+        <label>战役
+          <select id="g-campaign"><option value="">全部</option><option>noah</option><option>fezhx</option></select>
+        </label>
+        <span class="hint">壳 → 线(控制/分析ID/下载路径) → 包 连接件关系图</span>
+      </div>
+      <div id="chart-graph" class="chart-graph"></div>
+    </section>
+
+    <!-- 事件流 -->
+    <section id="tab-events" class="panel">
+      <div class="filters">
+        <label>优先级
+          <select id="e-priority"><option value="">全部</option><option value="high">高优</option><option value="pending">待确认</option><option value="watch">观察池</option></select>
+        </label>
+        <span id="e-count" class="count-badge"></span>
+      </div>
+      <div id="event-list" class="event-stream"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
