@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 · SilverFoxHunter 银狐猎手</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body class="auth-body">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="logo">🦊</span>
+      <h1>SilverFoxHunter</h1>
+      <p>银狐猎手 · 仿冒下载链威胁情报追踪</p>
+    </div>
+    <form id="login-form" class="auth-form" autocomplete="on">
+      <label>用户名
+        <input id="username" name="username" type="text" required autofocus autocomplete="username" />
+      </label>
+      <label>密码
+        <input id="password" name="password" type="password" required autocomplete="current-password" />
+      </label>
+      <button type="submit" class="btn-primary auth-submit">登 录</button>
+      <p id="login-error" class="auth-error"></p>
+      <p class="auth-hint">默认管理员账户：<code>admin</code> / <code>admin</code>，登录后可在个人中心修改。</p>
+    </form>
+  </div>
+  <script src="/assets/auth.js"></script>
+</body>
+</html>
