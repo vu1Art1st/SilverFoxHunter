@@ -1,0 +1,38 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# Test / coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local workspace / tooling
+.aicoding-chat-workspace
+
+# Runtime data (DB auto-seeds from empty on startup; keep runtime state out of VCS)
+data/evidence/
+data/liehu.db
+data/liehu.db-wal
+data/liehu.db-shm
+*.log
