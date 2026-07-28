@@ -20,7 +20,7 @@ _CATEGORY = {
     "download": 3,   # 线-下载路径
     "payload": 4,    # 包
 }
-_CATEGORY_NAMES = ["壳-前台", "线-控制接口", "线-分析ID", "线-下载路径", "包-载荷骨架"]
+_CATEGORY_NAMES = ["仿冒站点", "C2 控制接口", "统计 ID", "下载路径", "恶意载荷骨架"]
 
 
 @router.get("/campaigns/graph")

@@ -64,10 +64,12 @@ CREATE TABLE IF NOT EXISTS payloads (
     stable_sha256    TEXT,                  -- 去尾字节后的稳定区 SHA-256
     embedded_pe_sha256 TEXT,                -- 内嵌 PE SHA-256
     imphash          TEXT,                  -- 导入哈希
-    ole_stream_count INTEGER,               -- OLE 流数量
-    ole_identical    INTEGER,               -- 与上一轮逐字节一致的流数
+    ole_stream_count INTEGER,              -- OLE 流数量
+    ole_identical    INTEGER,              -- 与上一轮逐字节一致的流数
     wix_version      TEXT,                  -- 安装器元数据
-    structure_id     TEXT                   -- 生产骨架标识 (结构指纹)
+    structure_id     TEXT,                  -- 生产骨架标识 (结构指纹)
+    manufacturer     TEXT,                  -- 品牌元数据 (Ali/Amazon/Google/Feitunan Client Dll)
+    is_real_payload  INTEGER                -- 是否真包 (0=76字节资源不存在错误页, 1=真实安装包)
 );
 
 -- DNS 快照
@@ -124,6 +126,18 @@ CREATE TABLE IF NOT EXISTS meta (
     value            TEXT
 );
 
+-- 微步在线 L1 批量打标判定 (每域名保留最新一条)
+CREATE TABLE IF NOT EXISTS threatbook_verdicts (
+    domain           TEXT PRIMARY KEY,
+    is_malicious     INTEGER,               -- 是否恶意 (0/1)
+    confidence_level TEXT,                  -- 可信度 low/medium/high
+    severity         TEXT,                  -- 严重级别 critical/high/medium/low/info
+    judgments_json   TEXT,                  -- 威胁类型数组 JSON (C2/Malware/Phishing...)
+    tags_json        TEXT,                  -- 团伙/家族标签数组 JSON (如 "银狐")
+    permalink        TEXT,                  -- X 情报中心详情页链接
+    queried_at       TEXT                   -- 最近打标时间
+);
+
 -- 用户 (单机自用: 单一内置管理员, 可改用户名/密码/头像)
 CREATE TABLE IF NOT EXISTS users (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,7 +154,56 @@ CREATE TABLE IF NOT EXISTS app_settings (
     key              TEXT PRIMARY KEY,
     value            TEXT
 );
+
+-- 情报报告 (每篇威胁猎人手记一行, 7/15-7/25 银狐时间序列)
+CREATE TABLE IF NOT EXISTS intel_reports (
+    slug             TEXT PRIMARY KEY,      -- 微信文章 slug (如 D-Pbx_ABlOketT3R7tf8sA)
+    url              TEXT,                  -- 原文链接
+    title            TEXT,                  -- 文章标题
+    published_at     TEXT,                  -- 发布时间 (ISO)
+    campaign_phase   TEXT,                  -- 战役阶段 (route_merge/control_takeover/...)
+    summary          TEXT,                  -- 一句话摘要
+    confidence_json  TEXT,                  -- 置信边界表 JSON (确认/高置信/尚未)
+    source_anchors_json TEXT                -- 外部归因锚点 JSON (MalwareBazaar/CNCERT/奇安信)
+);
+
+-- IOC 目录 (跨全部文章归一化, 带优先级分级与处置类别)
+CREATE TABLE IF NOT EXISTS iocs (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    ioc_type         TEXT NOT NULL,         -- domain/url/ip/sha256/imphash/analytics_id/cert_san/download_path/control_api
+    value            TEXT NOT NULL,         -- IOC 值
+    priority_tier    TEXT,                  -- P1/P2/P3
+    disposition      TEXT,                  -- block / correlate_only (仅聚类不封禁)
+    campaign         TEXT,                  -- noah/fezhx/page/unknown
+    status           TEXT,                  -- active/held/nxdomain/unknown
+    succeeds         TEXT,                  -- 控制域继承来源 (如 fezhx succeeds page-admin)
+    first_report_date TEXT,                 -- 首次出现的报告日期
+    report_slug      TEXT,                  -- 关联 intel_reports.slug
+    notes            TEXT,                  -- 备注
+    UNIQUE(ioc_type, value)
+);
 """
+
+# ---- 迁移: 对已存在的库补齐新增列 (幂等) --------------------------------------
+# CREATE TABLE IF NOT EXISTS 不会给已存在的表补列, 因此这里显式检查并 ALTER。
+_COLUMN_MIGRATIONS = {
+    "payloads": {
+        "manufacturer": "TEXT",
+        "is_real_payload": "INTEGER",
+    },
+}
+
+
+def _migrate_columns(conn: sqlite3.Connection) -> None:
+    """为已存在的表补齐新增列 (幂等)。"""
+    for table, columns in _COLUMN_MIGRATIONS.items():
+        existing = {
+            row["name"]
+            for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        for name, coltype in columns.items():
+            if name not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {coltype}")
 
 
 def get_connection(db_path: Path | None = None) -> sqlite3.Connection:
@@ -158,6 +221,7 @@ def init_db(db_path: Path | None = None) -> None:
     conn = get_connection(db_path)
     try:
         conn.executescript(SCHEMA)
+        _migrate_columns(conn)
         conn.commit()
     finally:
         conn.close()

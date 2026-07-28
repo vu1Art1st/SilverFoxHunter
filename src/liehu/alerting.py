@@ -20,6 +20,9 @@ EVENT_PRIORITY = {
     EventType.ROUTE_MERGE: Priority.HIGH,             # 下载路径与战役拓扑
     EventType.ROUTE_SPLIT: Priority.HIGH,
     EventType.PAYLOAD_STRUCTURAL_CHANGE: Priority.HIGH,  # EDR 补检和分析升级
+    EventType.CONTROL_TAKEOVER: Priority.HIGH,        # 控制面继承 (新域接管被 Hold 旧域)
+    EventType.DOWNLOAD_MIGRATION: Priority.HIGH,      # 下载宿主/路径迁移
+    EventType.DEAD_LINK_DELIVERY: Priority.HIGH,      # 控制端下发死链, 供包后端仍活跃
     EventType.FIRST_PUBLIC: Priority.PENDING,
     EventType.CONTENT_CHANGE: Priority.WATCH,         # 资产状态复核
     EventType.PAYLOAD_ROTATION: Priority.WATCH,       # 更新当轮文件 IOC
@@ -36,6 +39,9 @@ EVENT_SINK = {
     EventType.ROUTE_SPLIT: "下载路径与战役拓扑告警",
     EventType.PAYLOAD_ROTATION: "更新当轮文件 IOC, 保留结构检索",
     EventType.PAYLOAD_STRUCTURAL_CHANGE: "EDR 补检和分析升级",
+    EventType.CONTROL_TAKEOVER: "控制面继承告警",
+    EventType.DOWNLOAD_MIGRATION: "下载路径迁移告警",
+    EventType.DEAD_LINK_DELIVERY: "死链投递/供包后端仍活跃告警",
     EventType.STATUS_CHANGE: "DNS 状态监控",
 }
 

@@ -305,10 +305,48 @@ def run_dns_cycle(collectors: Collectors, conn) -> dict:
     return {"dns": len(targets), "events": event_count}
 
 
+# ---- 微步在线: L1 批量打标周期 ------------------------------------------------
+
+def run_threatbook_cycle(collectors: Collectors, conn) -> dict:
+    """全量域名批量打标 (失陷检测接口, 每批 ≤100 个仅计 1 次调用)。
+
+    查询对象: 仿冒站点全部域名 + seed C2 域名 + 下载路径宿主 (links 表
+    download 节点的 host 部分)。判定落库 threatbook_verdicts, 供列表页
+    风险徽章与 L2 详查弹窗使用; live 失败仅记错误账本, 不阻断追踪主流程。
+    """
+    domains: list[str] = [
+        r["domain"] for r in conn.execute("SELECT domain FROM frontends").fetchall()
+    ]
+    domains.extend(settings.seed_control_domains)
+    dl_rows = conn.execute(
+        "SELECT DISTINCT dst AS node FROM links WHERE dst_type = 'download' "
+        "UNION SELECT DISTINCT src FROM links WHERE src_type = 'download'"
+    ).fetchall()
+    domains.extend(r["node"].split("/")[0] for r in dl_rows)
+
+    try:
+        verdicts = collectors.threatbook.verdict_batch(domains)
+    except Exception as exc:
+        record_error(conn, "threatbook", None, str(exc))
+        return {"domains": len(set(domains)), "verdicts": 0, "error": str(exc)}
+
+    from .collectors.threatbook import verdict_row
+    malicious = 0
+    for v in verdicts:
+        malicious += 1 if v.get("is_malicious") else 0
+        conn.execute(
+            "INSERT OR REPLACE INTO threatbook_verdicts (domain, is_malicious, "
+            "confidence_level, severity, judgments_json, tags_json, permalink, "
+            "queried_at) VALUES (?,?,?,?,?,?,?,?)",
+            verdict_row(v),
+        )
+    return {"domains": len(verdicts), "verdicts": len(verdicts), "malicious": malicious}
+
+
 # ---- 全流程 ------------------------------------------------------------------
 
 def run_full_cycle(collectors: Collectors | None = None) -> dict:
-    """依次运行壳/线/包/DNS 四个周期 (一次完整值班轮)。"""
+    """依次运行壳/线/包/DNS 四个周期 (一次完整值班轮), 收尾微步批量打标。"""
     init_db()
     collectors = collectors or build_collectors()
     result = {}
@@ -317,4 +355,5 @@ def run_full_cycle(collectors: Collectors | None = None) -> dict:
         result["control"] = run_control_cycle(collectors, conn)
         result["payload"] = run_payload_cycle(collectors, conn)
         result["dns"] = run_dns_cycle(collectors, conn)
+        result["threatbook"] = run_threatbook_cycle(collectors, conn)
     return result

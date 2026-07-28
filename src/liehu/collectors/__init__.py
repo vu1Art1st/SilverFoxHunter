@@ -14,6 +14,7 @@ from .control import ControlCollector
 from .doh import DohCollector
 from .payload import PayloadCollector
 from .rdap import RdapCollector
+from .threatbook import ThreatBookCollector
 from .urlscan import UrlScanCollector
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "DohCollector",
     "ControlCollector",
     "PayloadCollector",
+    "ThreatBookCollector",
     "Collectors",
     "build_collectors",
 ]
@@ -38,6 +40,7 @@ class Collectors:
     doh: DohCollector
     control: ControlCollector
     payload: PayloadCollector
+    threatbook: ThreatBookCollector
 
 
 def build_collectors() -> Collectors:
@@ -51,4 +54,7 @@ def build_collectors() -> Collectors:
         doh=DohCollector(settings.doh.mode, settings.doh.api_key),
         control=ControlCollector(settings.control.mode, settings.control.api_key),
         payload=PayloadCollector(settings.payload.mode, settings.payload.api_key),
+        threatbook=ThreatBookCollector(
+            settings.threatbook.mode, settings.threatbook.api_key
+        ),
     )

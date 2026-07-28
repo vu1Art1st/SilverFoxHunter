@@ -54,9 +54,10 @@ def classify_registration(
 
 # ---- 连接件归因 --------------------------------------------------------------
 
-# 连接件权重: 精确控制接口 / 分析 ID 为强连接件; IP/NS 仅候选
+# 连接件权重: 精确控制接口 / 共享证书 / 分析 ID 为强连接件; IP/NS 仅候选
 PIECE_WEIGHTS = {
     "control_api": 5,     # 精确 api.php 请求关系 (最强)
+    "shared_cert": 4,     # 共享多-SAN TLS 证书 (下载池强连接件)
     "analytics_id": 3,    # 相同分析 ID
     "adjacent_reg": 2,    # 秒级注册节奏 + 相邻地址
     "shared_ip": 1,       # 仅共享 IP (候选)
@@ -67,6 +68,7 @@ PIECE_WEIGHTS = {
 CONTROL_CAMPAIGN = {
     "noah-admin.site/api.php": Campaign.NOAH,
     "fezhx.com/api.php": Campaign.FEZHX,
+    "page-admin.site/api.php": Campaign.PAGE,   # 历史主控 (7·22 serverHold)
 }
 
 
@@ -89,8 +91,8 @@ def confidence(pieces: dict[str, bool]) -> tuple[str, int]:
         score: 连接件加权得分
     """
     score = sum(PIECE_WEIGHTS.get(name, 0) for name, hit in pieces.items() if hit)
-    # 命中精确控制接口即可确认; 或分析ID+其它连接件共现
-    strong = pieces.get("control_api") or (
+    # 命中精确控制接口或共享证书即可确认; 或分析ID+其它连接件共现
+    strong = pieces.get("control_api") or pieces.get("shared_cert") or (
         pieces.get("analytics_id") and pieces.get("adjacent_reg")
     )
     level = "confirmed" if strong else "candidate"
@@ -128,6 +130,23 @@ def detect_adjacent_registration(records: list[dict], window_seconds: int = 10) 
 
 # ---- 关系图 (壳->线->包) ------------------------------------------------------
 
+def normalize_download(link: str | None) -> str | None:
+    """归一化下载路径节点 id: 去掉协议前缀与末尾斜杠。
+
+    mock 数据源与文章 IOC 均使用 "host/path" 形式 (如 360down.net/Install_asz0.zip),
+    而 live 控制端采样返回完整 URL (如 https://360down.net/xxx.zip); 若不归一化,
+    同一宿主会在关联图中分裂为两个下载路径节点, 造成图与列表数据不一致。
+    """
+    if not link:
+        return link
+    normalized = link.strip()
+    for scheme in ("https://", "http://"):
+        if normalized.lower().startswith(scheme):
+            normalized = normalized[len(scheme):]
+            break
+    return normalized.rstrip("/")
+
+
 def build_links(
     frontends: list[dict],
     control_samples: list[dict],
@@ -164,12 +183,12 @@ def build_links(
     for s in control_samples:
         if s.get("download_link"):
             campaign = CONTROL_CAMPAIGN.get(s.get("control_api"), Campaign.UNKNOWN)
-            add(s["control_api"], NodeType.CONTROL, s["download_link"],
+            add(s["control_api"], NodeType.CONTROL, normalize_download(s["download_link"]),
                 NodeType.DOWNLOAD, "returns", campaign)
 
     for p in payloads:
         if p.get("structure_id"):
-            add(p["download_url"], NodeType.DOWNLOAD, p["structure_id"],
+            add(normalize_download(p["download_url"]), NodeType.DOWNLOAD, p["structure_id"],
                 NodeType.PAYLOAD, "rotates", Campaign.UNKNOWN)
 
     return links
@@ -202,3 +221,86 @@ def detect_route_topology(samples_by_round: list[list[dict]]) -> list[dict]:
                 "control_apis": [k for k, v in curr.items() if v],
             })
     return events
+
+
+# ---- 控制域接管 / 下载池 -------------------------------------------------
+
+def detect_control_succession(control_samples: list[dict]) -> list[dict]:
+    """检测控制域接管 (对应文章 7·22 page-admin -> fezhx)。
+
+    当一个控制域的成功响应 (resp_sha256) 与另一个处于 held/nxdomain
+    状态的控制域最后一份成功响应逐字节相同时, 认为新域接管了旧域。
+
+    Args:
+        control_samples: 控制端采样列表, 每项含 control_domain / control_api /
+            resp_sha256 / status (active/held/nxdomain) / observed_at。
+
+    Returns:
+        继承关系列表, 每项: {successor, predecessor, resp_sha256}。
+    """
+    # 按响应体哈希归集
+    by_hash: dict[str, list[dict]] = {}
+    for s in control_samples:
+        digest = s.get("resp_sha256")
+        if digest:
+            by_hash.setdefault(digest, []).append(s)
+
+    events: list[dict] = []
+    for digest, group in by_hash.items():
+        if len(group) < 2:
+            continue
+        # 处于 held/nxdomain 的为前任; active 的为接管方
+        predecessors = [g for g in group if g.get("status") in ("held", "nxdomain")]
+        successors = [g for g in group if g.get("status") == "active"]
+        for succ in successors:
+            for pred in predecessors:
+                if succ.get("control_domain") == pred.get("control_domain"):
+                    continue
+                events.append({
+                    "successor": succ.get("control_domain"),
+                    "predecessor": pred.get("control_domain"),
+                    "resp_sha256": digest,
+                })
+    return events
+
+
+def detect_download_pool(
+    records: list[dict], window_seconds: int = 5
+) -> list[list[str]]:
+    """检测预置下载池 (对应文章 gnrrn/dashte/fnik75tv/gukc3u2 同秒注册)。
+
+    同一池的判据: 共享同一张多-SAN 证书 (cert_san) 且注册时间落在
+    window_seconds 窗口内 (或共享同一下载宿主 IP)。仅共享 IP 而无证书/
+    同秒注册的不单独成池。
+
+    Args:
+        records: 下载域记录, 每项含 domain / cert_san / registered_at / download_ip。
+
+    Returns:
+        每个子列表为一个池的域名集合 (至少 2 个)。
+    """
+    # 1) 按共享 SAN 证书聚类 (强连接件)
+    by_cert: dict[str, list[dict]] = {}
+    for r in records:
+        san = r.get("cert_san")
+        if san:
+            by_cert.setdefault(san, []).append(r)
+
+    pools: list[list[str]] = []
+    grouped: set[str] = set()
+    for san, group in by_cert.items():
+        if len(group) >= 2:
+            domains = [g["domain"] for g in group]
+            pools.append(domains)
+            grouped.update(domains)
+
+    # 2) 剩余未分组的: 同秒注册 + 相同下载 IP
+    rest = [r for r in records if r["domain"] not in grouped]
+    adjacent = detect_adjacent_registration(rest, window_seconds)
+    ip_of = {r["domain"]: r.get("download_ip") for r in rest}
+    for grp in adjacent:
+        ips = {ip_of.get(d) for d in grp if ip_of.get(d)}
+        if len(ips) == 1:  # 同秒注册且落在同一下载 IP
+            pools.append(grp)
+
+    return pools

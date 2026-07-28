@@ -18,8 +18,10 @@ from .campaigns import router as campaigns_router
 from .controls import router as controls_router
 from .events import router as events_router
 from .frontends import router as frontends_router
+from .intel import router as intel_router
 from .payloads import router as payloads_router
 from .stats import router as stats_router
+from .threatbook import router as threatbook_router
 
 api_router = APIRouter(prefix="/api")
 
@@ -37,5 +39,7 @@ api_router.include_router(controls_router, dependencies=_protected)
 api_router.include_router(payloads_router, dependencies=_protected)
 api_router.include_router(events_router, dependencies=_protected)
 api_router.include_router(campaigns_router, dependencies=_protected)
+api_router.include_router(intel_router, dependencies=_protected)
+api_router.include_router(threatbook_router, dependencies=_protected)
 
 __all__ = ["api_router"]

@@ -21,6 +21,9 @@ class EventType:
     PAYLOAD_ROTATION = "PAYLOAD_ROTATION"               # 完整哈希变, 稳定结构保持
     PAYLOAD_STRUCTURAL_CHANGE = "PAYLOAD_STRUCTURAL_CHANGE"  # MSI流/内嵌PE/稳定区改变
     STATUS_CHANGE = "STATUS_CHANGE"                     # NXDOMAIN/恢复解析/地址或NS改变
+    CONTROL_TAKEOVER = "CONTROL_TAKEOVER"               # 新控制域以逐字节相同响应接管被 Hold 的旧控制域
+    DOWNLOAD_MIGRATION = "DOWNLOAD_MIGRATION"           # 控制端下发的下载宿主/路径迁移
+    DEAD_LINK_DELIVERY = "DEAD_LINK_DELIVERY"           # 控制端仍下发 NXDOMAIN 下载域, 供包后端仍在打包
 
 
 class Priority:
@@ -45,6 +48,7 @@ class Campaign:
 
     NOAH = "noah"
     FEZHX = "fezhx"
+    PAGE = "page"      # 历史主控 page-admin.site (7·22 被 serverHold)
     UNKNOWN = "unknown"
 
 

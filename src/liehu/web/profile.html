@@ -68,7 +68,10 @@
       <div id="config-panel" class="config-panel" hidden>
         <p class="auth-hint">
           每个采集器可在 <code>mock</code>（回放）/ <code>live</code>（真实源）间切换；
-          <code>urlscan</code> / <code>certspotter</code> 的 live 模式需提供 API 密钥。
+          <code>urlscan</code> 的 live 模式需提供 API 密钥（<code>API-Key</code> 请求头认证）；
+          <code>微步在线情报</code> 的 live 模式需提供 apikey（请求参数认证），
+          支持录入多个 KEY（用逗号或分号分隔），当前 KEY 达到限额时自动切换下一个。
+          证书透明日志已切换为免费的 <code>crt.sh</code> 检索服务，live 模式无需任何密钥。
         </p>
         <div id="modes-grid" class="config-grid"></div>
         <div id="keys-grid" class="config-grid"></div>

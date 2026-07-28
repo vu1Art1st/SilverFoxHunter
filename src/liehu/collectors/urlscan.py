@@ -5,8 +5,12 @@
     - 用 filename.keyword 精确匹配"哪些页面请求过这条 api.php";
     - 采用重叠时间窗 + task.uuid 去重吸收索引延迟。
 
-Mock 模式从复原数据集中按控制域筛选前台; Live 模式构造 URLScan Search API
-查询并调用 (需 URLSCAN_API_KEY)。
+Mock 模式从复原数据集中按控制域筛选前台; Live 模式调用 URLScan Search API
+(官方文档: https://urlscan.io/docs/api/):
+    - 端点: GET https://urlscan.io/api/v1/search/
+    - 参数: q (ElasticSearch 查询串) / size (默认 100, 最大 10000)
+    - 认证: API-Key 请求头 (官方要求使用 api-key 头而非 x-api-key 等其他名称;
+      密钥在 https://urlscan.io/user/profile/ 注册账号后创建)。
 """
 
 from __future__ import annotations
@@ -76,7 +80,11 @@ class UrlScanCollector(Provider):
 
     # ---- Live ----------------------------------------------------------------
     def _discover_live(self, control_domain: str, window_minutes: int) -> list[FrontendRecord]:
-        """调用真实 URLScan Search API (需 API Key)。"""
+        """调用真实 URLScan Search API。
+
+        严格按官方规范: GET /api/v1/search/?q=...&size=..., 认证使用 API-Key 请求头
+        (未认证请求仅享匿名配额), 并按文档建议用 date 过滤缩小查询窗口。
+        """
         query = build_query(control_domain, window_minutes, precise=True)
         headers = {"API-Key": self.api_key} if self.api_key else {}
         params = {"q": query, "size": 100}

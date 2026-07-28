@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from liehu.analysis.diff import (
+    detect_download_migration,
     diff_control,
     diff_dns,
     diff_frontend,
     diff_payload,
+    is_dead_link_delivery,
 )
 from liehu.models import EventType
 
@@ -78,6 +80,37 @@ def test_diff_payload_structural_change_takes_priority():
     events = diff_payload(prev, curr)
     assert len(events) == 1
     assert events[0]["event_type"] == EventType.PAYLOAD_STRUCTURAL_CHANGE
+
+
+def test_detect_download_migration_host_change():
+    """下载宿主变化 (gehie246 -> gnrrn2821) -> DOWNLOAD_MIGRATION。"""
+    prev = {"control_api": "fezhx.com/api.php", "download_link": "gehie246.com/712down"}
+    curr = {"control_api": "fezhx.com/api.php", "download_link": "www.gnrrn2821.com/22setup"}
+    events = detect_download_migration(prev, curr)
+    assert len(events) == 1
+    assert events[0]["event_type"] == EventType.DOWNLOAD_MIGRATION
+    assert "宿主迁移" in events[0]["fact"]
+
+
+def test_detect_download_migration_none_and_unchanged():
+    """首次采样或 download_link 未变化时不触发迁移。"""
+    curr = {"control_api": "fezhx.com/api.php", "download_link": "fnik75tv.com/down24"}
+    assert detect_download_migration(None, curr) == []
+    assert detect_download_migration(dict(curr), dict(curr)) == []
+
+
+def test_is_dead_link_delivery_on_nxdomain_host():
+    """控制端仍下发的下载宿主已 NXDOMAIN (Status 3) -> DEAD_LINK_DELIVERY。"""
+    sample = {"control_api": "fezhx.com/api.php", "download_link": "gukc3u2.com/26load"}
+    events = is_dead_link_delivery(sample, {"gukc3u2.com": 3})
+    assert len(events) == 1
+    assert events[0]["event_type"] == EventType.DEAD_LINK_DELIVERY
+
+
+def test_is_dead_link_delivery_ignores_live_host():
+    """下载宿主仍可解析 (Status 0) 时不算死链投递。"""
+    sample = {"control_api": "fezhx.com/api.php", "download_link": "fnik75tv.com/down24"}
+    assert is_dead_link_delivery(sample, {"fnik75tv.com": 0}) == []
 
 
 def test_diff_dns_status_change():

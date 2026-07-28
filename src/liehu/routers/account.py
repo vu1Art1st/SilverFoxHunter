@@ -15,6 +15,7 @@ from ..auth import hash_password, require_user, verify_password
 from ..config import (
     API_KEY_COLLECTORS,
     MODE_COLLECTORS,
+    parse_api_keys,
     save_overrides_to_db,
     settings,
 )
@@ -128,17 +129,27 @@ def _mask(key: str | None) -> str:
     return "•" * (len(key) - 4) + key[-4:]
 
 
+def _mask_multi(raw: str | None) -> str:
+    """掩码显示多 KEY 配置 (threatbook 等): 逐个掩码, 标注数量。"""
+    keys = parse_api_keys(raw)
+    if not keys:
+        return ""
+    masked = ", ".join(_mask(k)[-8:] for k in keys)
+    return f"{len(keys)} 个: {masked}"
+
+
 @router.get("/settings/apikeys")
 def get_apikeys(user: dict = Depends(require_user)) -> dict:
-    """返回各采集器模式与 API 密钥 (密钥掩码显示)。"""
+    """返回各采集器模式与 API 密钥 (密钥掩码显示, 多 KEY 逐个掩码)。"""
     modes = {name: getattr(settings, name).mode for name in MODE_COLLECTORS}
-    keys = {
-        name: {
-            "masked": _mask(getattr(settings, name).api_key),
-            "set": bool(getattr(settings, name).api_key),
+    keys = {}
+    for name in API_KEY_COLLECTORS:
+        raw = getattr(settings, name).api_key
+        multi = len(parse_api_keys(raw)) > 1
+        keys[name] = {
+            "masked": _mask_multi(raw) if multi else _mask(raw),
+            "set": bool(raw),
         }
-        for name in API_KEY_COLLECTORS
-    }
     return {"modes": modes, "api_keys": keys}
 
 

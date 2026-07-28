@@ -100,6 +100,64 @@ def diff_payload(prev: dict | None, curr: dict) -> list[dict]:
     return []
 
 
+def _download_host(link: str | None) -> str | None:
+    """从 download_link 中抽取宿主 (去协议与路径)。"""
+    if not link:
+        return None
+    s = link.strip()
+    for scheme in ("https://", "http://"):
+        if s.lower().startswith(scheme):
+            s = s[len(scheme):]
+            break
+    return s.split("/", 1)[0]
+
+
+def detect_download_migration(prev: dict | None, curr: dict) -> list[dict]:
+    """下载端点迁移 (对应文章 /712down->/22setup->/down24->/26load)。
+
+    同一控制接口相邻两轮采样的 download_link 宿主或路径发生变化
+    时, 记 DOWNLOAD_MIGRATION。与 CONTROL_CHANGE 区分: 后者只要响应体或
+    download_link 变化即触发; 前者专注于下载宿主/路径这一更强的信号。
+    """
+    if prev is None:
+        return []
+    prev_link = prev.get("download_link")
+    curr_link = curr.get("download_link")
+    if not prev_link or not curr_link or prev_link == curr_link:
+        return []
+    prev_host = _download_host(prev_link)
+    curr_host = _download_host(curr_link)
+    kind = "宿主迁移" if prev_host != curr_host else "路径迁移"
+    return [_event(
+        EventType.DOWNLOAD_MIGRATION, curr.get("control_api") or curr_host,
+        f"下载{kind}: {prev_link} -> {curr_link}",
+        prev_link, curr_link, curr.get("evidence_url"),
+    )]
+
+
+def is_dead_link_delivery(sample: dict, dns_status_map: dict[str, int]) -> list[dict]:
+    """死链投递 (对应文章 7·25 gukc3u2 被 hold 后控制端仍下发)。
+
+    控制端仍在下发的 download_link 宿主在 DNS 上已 NXDOMAIN (Status 3) 时,
+    普通客户端拿到无法解析的下载域, 但供包后端可能仍在打包。
+
+    Args:
+        sample: 控制端采样 (含 control_api / download_link)。
+        dns_status_map: {宿主域: Google DoH Status} (3=NXDOMAIN)。
+    """
+    link = sample.get("download_link")
+    host = _download_host(link)
+    if not host:
+        return []
+    if dns_status_map.get(host) == 3:
+        return [_event(
+            EventType.DEAD_LINK_DELIVERY, sample.get("control_api") or host,
+            f"控制端仍下发死链 {link} (宿主 {host} 已 NXDOMAIN)",
+            None, link, sample.get("evidence_url"),
+        )]
+    return []
+
+
 def diff_dns(prev: dict | None, curr: dict) -> list[dict]:
     """DNS 差异: STATUS_CHANGE (NXDOMAIN/恢复解析/地址或NS改变)。"""
     if prev is None:

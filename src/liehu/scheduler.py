@@ -55,13 +55,15 @@ def start_scheduler() -> BackgroundScheduler:
                   "interval", seconds=cad.payload_seconds, id="payload")
     sched.add_job(_safe(tracker.run_dns_cycle, "dns"),
                   "interval", seconds=cad.dns_seconds, id="dns")
+    sched.add_job(_safe(tracker.run_threatbook_cycle, "threatbook"),
+                  "interval", seconds=cad.threatbook_seconds, id="threatbook")
 
     sched.start()
     _scheduler = sched
     logger.info(
-        "scheduler started: frontend=%ss control=%ss payload=%ss dns=%ss",
+        "scheduler started: frontend=%ss control=%ss payload=%ss dns=%ss threatbook=%ss",
         cad.frontend_seconds, cad.control_seconds,
-        cad.payload_seconds, cad.dns_seconds,
+        cad.payload_seconds, cad.dns_seconds, cad.threatbook_seconds,
     )
     return sched
 

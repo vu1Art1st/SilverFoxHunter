@@ -4,13 +4,28 @@
 const API = "/api";
 const MODE_LABELS = {
   urlscan: "URLScan",
-  certspotter: "CertSpotter",
+  certspotter: "证书透明 (crt.sh)",
   rdap: "RDAP/WHOIS",
   doh: "DNS (DoH)",
   control: "控制接口",
   payload: "载荷解析",
+  threatbook: "微步在线情报",
 };
-const KEY_COLLECTORS = ["urlscan", "certspotter"];
+const KEY_COLLECTORS = ["urlscan", "threatbook"];
+// 官方平台 API 密钥申请入口与认证方式说明
+// (certspotter 已切换为免费 crt.sh 数据源, 无需 API 密钥)
+const KEY_PROVIDERS = {
+  urlscan: {
+    getKeyUrl: "https://urlscan.io/user/profile/",
+    docsUrl: "https://urlscan.io/docs/api/",
+    authHint: "认证方式: API-Key 请求头",
+  },
+  threatbook: {
+    getKeyUrl: "https://x.threatbook.com/v5/myApi",
+    docsUrl: "https://x.threatbook.com/v5/apiDocs",
+    authHint: "认证方式: apikey 请求参数 · 可录入多个 KEY (逗号/分号分隔), 达到限额自动切换下一个",
+  },
+};
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(
@@ -161,9 +176,15 @@ async function loadConfig() {
     KEY_COLLECTORS.map((name) => {
       const info = (cfg.api_keys && cfg.api_keys[name]) || {};
       const ph = info.set ? `已配置 (${esc(info.masked)})` : "未配置";
+      const prov = KEY_PROVIDERS[name] || {};
+      const links = prov.getKeyUrl
+        ? `<small class="auth-hint">留空表示不修改 · ${esc(prov.authHint || "")}<br>
+            <a class="key-link" href="${esc(prov.getKeyUrl)}" target="_blank" rel="noopener noreferrer">前往官方平台获取密钥 ↗</a>
+            · <a class="key-link" href="${esc(prov.docsUrl)}" target="_blank" rel="noopener noreferrer">API 文档 ↗</a></small>`
+        : `<small class="auth-hint">留空表示不修改</small>`;
       return `<label class="config-item">${esc(MODE_LABELS[name])} 密钥
         <input type="text" data-key="${name}" placeholder="${ph}" />
-        <small class="auth-hint">留空表示不修改</small></label>`;
+        ${links}</label>`;
     }).join("");
 }
 

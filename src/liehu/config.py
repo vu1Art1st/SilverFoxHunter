@@ -53,6 +53,7 @@ class Cadence:
     dns_seconds: int = 600           # DNS: 按生命周期
     ct_seconds: int = 1800           # CT / 注册数据: 较慢
     payload_seconds: int = 300       # 供包路径静态解析
+    threatbook_seconds: int = 86400  # 微步 L1 批量打标: 每日一次 (配额友好)
 
 
 @dataclass
@@ -86,6 +87,11 @@ class Settings:
     payload: CollectorMode = field(default_factory=lambda: CollectorMode(
         mode=os.getenv("LIEHU_PAYLOAD_MODE", "mock"),
     ))
+    # 微步在线情报: api_key 支持多个 KEY (逗号/分号/换行分隔), 限额时自动切换
+    threatbook: CollectorMode = field(default_factory=lambda: CollectorMode(
+        mode=os.getenv("LIEHU_THREATBOOK_MODE", "mock"),
+        api_key=os.getenv("THREATBOOK_API_KEYS"),
+    ))
 
     cadence: Cadence = field(default_factory=Cadence)
 
@@ -105,10 +111,24 @@ settings = Settings()
 """全局单例配置对象。"""
 
 
-# 可配置 API 密钥的采集器 (其余数据源无需密钥)
-API_KEY_COLLECTORS = ("urlscan", "certspotter")
+# 可配置 API 密钥的采集器 (certspotter 已切换为免费 crt.sh, 无需密钥;
+# threatbook 支持录入多个 KEY, 用逗号/分号/换行分隔, 达到限额自动切换下一个)
+API_KEY_COLLECTORS = ("urlscan", "threatbook")
 # 可切换 mock/live 模式的采集器
-MODE_COLLECTORS = ("urlscan", "certspotter", "rdap", "doh", "control", "payload")
+MODE_COLLECTORS = ("urlscan", "certspotter", "rdap", "doh", "control", "payload", "threatbook")
+
+
+def parse_api_keys(raw: str | None) -> list[str]:
+    """将多 KEY 配置串解析为密钥列表 (逗号/分号/换行分隔, 去空白去重保序)。"""
+    if not raw:
+        return []
+    normalized = raw.replace("\r", "\n").replace(";", "\n").replace(",", "\n")
+    seen: list[str] = []
+    for part in normalized.split("\n"):
+        key = part.strip()
+        if key and key not in seen:
+            seen.append(key)
+    return seen
 
 
 def reload_overrides_from_db() -> None:
@@ -158,6 +178,12 @@ def save_overrides_to_db(modes: dict[str, str], api_keys: dict[str, str]) -> Non
                     "INSERT OR REPLACE INTO app_settings(key, value) VALUES (?, ?)",
                     (f"apikey.{name}", key or ""),
                 )
+                if name == "threatbook":
+                    # 密钥集合变更后从第一个 KEY 重新开始轮换
+                    conn.execute(
+                        "INSERT OR REPLACE INTO app_settings(key, value) VALUES (?, ?)",
+                        ("threatbook.key_index", "0"),
+                    )
         conn.commit()
     finally:
         conn.close()

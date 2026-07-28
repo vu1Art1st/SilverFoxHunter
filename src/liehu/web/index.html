@@ -13,7 +13,7 @@
       <span class="logo">🦊</span>
       <div class="brand-text">
         <h1>SilverFoxHunter · 银狐猎手</h1>
-        <p>银狐仿冒下载链威胁情报追踪 · 壳 / 线 / 包 三层方法论</p>
+        <p>银狐仿冒下载链威胁情报追踪 · 仿冒站点 / C2 通道 / 恶意载荷 三层关联分析</p>
       </div>
     </div>
     <div class="topbar-right">
@@ -27,12 +27,13 @@
   </header>
 
   <nav class="tabs">
-    <button class="tab active" data-tab="overview">总览水位</button>
-    <button class="tab" data-tab="frontends">前台 · 壳</button>
-    <button class="tab" data-tab="controls">控制线 · 线</button>
-    <button class="tab" data-tab="payloads">载荷 · 包</button>
+    <button class="tab active" data-tab="overview">总览</button>
+    <button class="tab" data-tab="frontends">仿冒站点</button>
+    <button class="tab" data-tab="controls">C2 控制端</button>
+    <button class="tab" data-tab="payloads">恶意载荷</button>
     <button class="tab" data-tab="graph">关联图</button>
     <button class="tab" data-tab="events">事件流</button>
+    <button class="tab" data-tab="intel">情报库</button>
   </nav>
 
   <main>
@@ -41,15 +42,15 @@
       <div class="cards" id="stat-cards"></div>
       <div class="chart-row">
         <div class="chart-box">
-          <h3>战役分布 (noah / fezhx)</h3>
+          <h3>仿冒站点集群分布</h3>
           <div id="chart-campaign" class="chart"></div>
         </div>
         <div class="chart-box">
-          <h3>当天分类水位</h3>
+          <h3>域名注册时效分类</h3>
           <div id="chart-dayclass" class="chart"></div>
         </div>
         <div class="chart-box">
-          <h3>题材分布</h3>
+          <h3>社工诱饵题材分布</h3>
           <div id="chart-theme" class="chart"></div>
         </div>
       </div>
@@ -65,42 +66,63 @@
       </div>
     </section>
 
-    <!-- 前台 -->
+    <!-- 仿冒站点 -->
     <section id="tab-frontends" class="panel">
       <div class="filters">
-        <label>战役
+        <label>域名
+          <input type="search" id="f-domain" placeholder="输入域名关键词筛选…" />
+        </label>
+        <label>C2 集群
           <select id="f-campaign"><option value="">全部</option><option>noah</option><option>fezhx</option></select>
         </label>
-        <label>当天分类
+        <label>注册时效
           <select id="f-dayclass"><option value="">全部</option></select>
         </label>
-        <label>题材
+        <label>诱饵题材
           <select id="f-theme"><option value="">全部</option></select>
         </label>
+        <span class="view-toggle" title="切换展示视图">
+          <button id="btn-view-card" class="view-btn active">▦ 卡片</button>
+          <button id="btn-view-list" class="view-btn">≡ 列表</button>
+        </span>
+        <button id="btn-export-csv" class="btn-ghost" title="按当前过滤条件导出全量字段 CSV (UTF-8)">⭳ 导出 CSV</button>
         <span id="f-count" class="count-badge"></span>
       </div>
+      <p class="hint">点击仿冒域名可弹窗查看站点实时截图与存活状态。</p>
       <div id="frontend-list" class="card-grid"></div>
+      <div id="frontend-table" class="table-wrap" hidden></div>
     </section>
 
-    <!-- 控制线 -->
+    <!-- C2 控制端 -->
     <section id="tab-controls" class="panel">
-      <p class="hint">控制接口分时采样时间线 —— 观察 <code>download_link</code> 由 7·22 分离到 7·23 合流的过程。</p>
+      <p class="hint">C2 控制接口分时采样时间线 —— 观察 <code>download_link</code> 由 7·22 分离到 7·23 合流的过程。</p>
+      <div class="filters">
+        <label>起始时间
+          <input type="datetime-local" id="c-start" />
+        </label>
+        <label>结束时间
+          <input type="datetime-local" id="c-end" />
+        </label>
+        <button id="btn-ctl-filter" class="btn-ghost" title="按时间范围筛选采样">筛选</button>
+        <button id="btn-ctl-reset" class="btn-ghost" title="清除时间范围">重置</button>
+        <span id="c-count" class="count-badge"></span>
+      </div>
       <div id="control-timeline"></div>
     </section>
 
-    <!-- 载荷 -->
+    <!-- 恶意载荷 -->
     <section id="tab-payloads" class="panel">
-      <p class="hint">按 <code>structure_id</code> 归组的载荷骨架 —— 完整哈希秒级轮换, 但稳定区 SHA256 / imphash / OLE 结构持久。</p>
+      <p class="hint">按 <code>structure_id</code> 归组的恶意载荷骨架 —— 完整哈希秒级轮换, 但稳定区 SHA256 / imphash / OLE 结构持久。</p>
       <div id="payload-compare"></div>
     </section>
 
     <!-- 关联图 -->
     <section id="tab-graph" class="panel">
       <div class="filters">
-        <label>战役
+        <label>C2 集群
           <select id="g-campaign"><option value="">全部</option><option>noah</option><option>fezhx</option></select>
         </label>
-        <span class="hint">壳 → 线(控制/分析ID/下载路径) → 包 连接件关系图</span>
+        <span class="hint">仿冒站点 → C2 连接件(控制接口 / 统计ID / 下载路径) → 恶意载荷 关联图</span>
       </div>
       <div id="chart-graph" class="chart-graph"></div>
     </section>
@@ -108,6 +130,9 @@
     <!-- 事件流 -->
     <section id="tab-events" class="panel">
       <div class="filters">
+        <label>事件类型
+          <select id="e-type"><option value="">全部</option></select>
+        </label>
         <label>优先级
           <select id="e-priority"><option value="">全部</option><option value="high">高优</option><option value="pending">待确认</option><option value="watch">观察池</option></select>
         </label>
@@ -115,9 +140,53 @@
       </div>
       <div id="event-list" class="event-stream"></div>
     </section>
+
+    <!-- 情报库: 16 篇手记时间线 + 全量 IOC 目录 -->
+    <section id="tab-intel" class="panel">
+      <p class="hint">跨同作者 16 篇威胁猎人手记归一化的 IOC 目录 —— P1/P2/P3 优先级与 <code>block</code> / <code>仅聚类不封禁</code> 处置类别; 控制面继承 / 下载迁移 / 死链投递已接入「事件流」与「关联图」。</p>
+      <div class="cards" id="intel-cards"></div>
+      <h3 class="intel-h">IOC 目录</h3>
+      <div class="filters">
+        <label>类型
+          <select id="i-type"><option value="">全部</option></select>
+        </label>
+        <label>优先级
+          <select id="i-priority"><option value="">全部</option><option value="P1">P1</option><option value="P2">P2</option><option value="P3">P3</option></select>
+        </label>
+        <label>处置
+          <select id="i-disposition"><option value="">全部</option><option value="block">block</option><option value="correlate_only">仅聚类</option></select>
+        </label>
+        <label>战役
+          <select id="i-campaign"><option value="">全部</option><option>noah</option><option>fezhx</option><option>page</option><option>unknown</option></select>
+        </label>
+        <label>状态
+          <select id="i-status"><option value="">全部</option><option value="active">active</option><option value="held">held</option><option value="nxdomain">nxdomain</option><option value="unknown">unknown</option></select>
+        </label>
+        <span id="i-count" class="count-badge"></span>
+      </div>
+      <div id="intel-ioc-table" class="table-wrap"></div>
+      <details class="intel-sources">
+        <summary>情报来源 / 方法学出处 · 16 篇手记 (7/15 → 7/25 同一战役时间序列)</summary>
+        <div id="intel-timeline" class="intel-timeline"></div>
+      </details>
+    </section>
   </main>
 
   <div id="toast" class="toast"></div>
+
+  <!-- 仿冒站点截图弹窗 (默认隐藏, 点击域名弹出) -->
+  <div id="shot-modal" class="modal-mask" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <span id="shot-domain" class="shot-domain"></span>
+        <button id="shot-close" class="btn-ghost" title="关闭">✕</button>
+      </div>
+      <div id="shot-body" class="modal-body"></div>
+            <!-- 微步在线 L2 按需详查区块 (与截图探测并行加载) -->
+            <div id="tb-intel" class="tb-intel"></div>
+    </div>
+  </div>
+
   <script src="/assets/app.js"></script>
 </body>
 </html>
